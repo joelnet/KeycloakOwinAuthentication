@@ -32,8 +32,8 @@ namespace Owin.Security.Keycloak.Middleware
                         try
                         {
                             var authResponse = new TokenResponse(bearerAuthArr[1], null, null);
-                            var kcIdentity = await KeycloakIdentity.ConvertFromTokenResponseAsync(Options, authResponse);
-                            var identity = await kcIdentity.ToClaimsIdentityAsync();
+                            var kcIdentity = await KeycloakIdentity.ConvertFromTokenResponseAsync(Context, Options, authResponse);
+                            var identity = await kcIdentity.ToClaimsIdentityAsync(Context);
                             SignInAsAuthentication(identity, null, Options.SignInAsAuthenticationType);
                             return new AuthenticationTicket(identity, new AuthenticationProperties());
                         }
@@ -58,7 +58,7 @@ namespace Owin.Security.Keycloak.Middleware
                 await ValidateSignInAsIdentities();
 
             // Check for valid callback URI
-            var callbackUri = await KeycloakIdentity.GenerateLoginCallbackUriAsync(Options, Request.Uri);
+            var callbackUri = await KeycloakIdentity.GenerateLoginCallbackUriAsync(Context, Options, Request.Uri);
             if (!Options.ForceBearerTokenAuth && Request.Uri.GetLeftPart(UriPartial.Path) == callbackUri.ToString())
             {
                 // Create authorization result from query
@@ -78,10 +78,10 @@ namespace Owin.Security.Keycloak.Middleware
 
                     // Process response
                     var kcIdentity =
-                        await KeycloakIdentity.ConvertFromAuthResponseAsync(Options, authResult, Request.Uri);
-                    var identity = await kcIdentity.ToClaimsIdentityAsync();
+                        await KeycloakIdentity.ConvertFromAuthResponseAsync(Context, Options, authResult, Request.Uri);
+                    var identity = await kcIdentity.ToClaimsIdentityAsync(Context);
 
-                    Context.Authentication.User = new ClaimsPrincipal(identity);
+                    Context.Authentication.User.AddIdentity(identity);
                     SignInAsAuthentication(identity, properties, Options.SignInAsAuthenticationType);
 
                     // Trigger OnAuthenticated?
@@ -191,11 +191,11 @@ namespace Owin.Security.Keycloak.Middleware
                 {
                     if (!origIdentity.HasClaim(Constants.ClaimTypes.AuthenticationType, Options.AuthenticationType))
                         continue;
-                    var kcIdentity = await KeycloakIdentity.ConvertFromClaimsIdentityAsync(Options, origIdentity);
+                    var kcIdentity = await KeycloakIdentity.ConvertFromClaimsIdentityAsync(Context, Options, origIdentity);
                     if (!kcIdentity.IsTouched) continue;
 
                     // Replace identity if expired
-                    var identity = await kcIdentity.ToClaimsIdentityAsync();
+                    var identity = await kcIdentity.ToClaimsIdentityAsync(Context);
                     Context.Authentication.User = new ClaimsPrincipal(identity);
                     SignInAsAuthentication(identity, null, Options.SignInAsAuthenticationType);
                 }
@@ -253,7 +253,7 @@ namespace Owin.Security.Keycloak.Middleware
             var state = Global.StateCache.CreateState(stateData);
 
             // Redirect response to login
-            Response.Redirect((await KeycloakIdentity.GenerateLoginUriAsync(Options, Request.Uri, state)).ToString());
+            Response.Redirect((await KeycloakIdentity.GenerateLoginUriAsync(Context, Options, Request.Uri, state)).ToString());
         }
 
         private async Task LogoutRedirectAsync()
@@ -261,7 +261,7 @@ namespace Owin.Security.Keycloak.Middleware
             // Redirect response to logout
             Response.Redirect(
                 (await
-                    KeycloakIdentity.GenerateLogoutUriAsync(Options, Request.Uri))
+                    KeycloakIdentity.GenerateLogoutUriAsync(Context, Options, Request.Uri))
                     .ToString());
         }
 
