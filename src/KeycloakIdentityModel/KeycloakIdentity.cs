@@ -301,12 +301,12 @@ namespace KeycloakIdentityModel
         public static async Task<Uri> GenerateLogoutUriAsync(IOwinContext context, IKeycloakParameters parameters, Uri baseUri,
             string redirectUrl = null)
         {
-            if (parameters == null) throw new ArgumentNullException(nameof(parameters));
+            if (parameters == null) throw new ArgumentNullException(nameof(parameters)); 
             if (baseUri == null) throw new ArgumentNullException(nameof(baseUri));
 
             // Generate logout URI and data
             var uriManager = await OidcDataManager.GetCachedContextAsync(context, parameters);
-            var logoutParams = uriManager.BuildEndSessionEndpointContent(baseUri, null, redirectUrl);
+            var logoutParams = uriManager.BuildEndSessionEndpointContent(baseUri, null, redirectUrl ?? GetSignOutPropertiesRedirect(context.Environment));
             var logoutUrl = uriManager.GetEndSessionEndpoint();
 
             // Return logout URI
@@ -488,6 +488,14 @@ namespace KeycloakIdentityModel
                         await new RefreshAccessTokenMessage(context, _parameters, refreshToken).ExecuteAsync();
             await CopyFromJwt(context, respMessage.AccessToken, respMessage.RefreshToken, respMessage.IdToken);
             IsTouched = true;
+        }
+
+        private static string GetSignOutPropertiesRedirect(IDictionary<string, object> environment) {
+            return environment?.Where(o => o.Key == "security.SignOutProperties")
+                .SelectMany(o => (Dictionary<string, string>)o.Value)
+                .Where(o => o.Key == ".redirect")
+                .Select(o => o.Value)
+                .FirstOrDefault();
         }
 
         #endregion
