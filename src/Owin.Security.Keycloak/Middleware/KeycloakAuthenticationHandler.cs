@@ -54,7 +54,7 @@ namespace Owin.Security.Keycloak.Middleware
         {
             // Check SignInAs identity for authentication update
             if (Context.Authentication.User.Identity.IsAuthenticated)
-                await ValidateSignInAsIdentities(Context);
+                await ValidateSignInAsIdentities();
 
             // Check for valid callback URI
             var callbackUri = await KeycloakIdentity.GenerateLoginCallbackUriAsync(Context, Options, Request.Uri);
